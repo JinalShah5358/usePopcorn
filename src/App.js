@@ -275,7 +275,7 @@ function MovieDetails({
       userRating,
     };
     handleAddWatchMovie(newWatchedMovie);
-    handleCloseMovie(movie);
+    handleCloseMovie();
   }
 
   const key = "198730f3";
@@ -315,6 +315,21 @@ function MovieDetails({
     [title]
   );
 
+  useEffect(
+    function () {
+      function callback(e) {
+        if (e.code === "Escape") {
+          handleCloseMovie();
+        }
+      }
+      document.addEventListener("keydown", callback);
+
+      return function () {
+        document.removeEventListener("keydown", callback);
+      };
+    },
+    [handleCloseMovie]
+  );
   return (
     <div className="details">
       {isMovieLoading ? (
@@ -410,11 +425,14 @@ export default function App() {
 
   useEffect(
     function () {
+      const controller = new AbortController();
+
       setIsLoading(true);
       async function fetchMovieData() {
         try {
           const res = await fetch(
-            `http://www.omdbapi.com/?apikey=${key}&s=${query}`
+            `http://www.omdbapi.com/?apikey=${key}&s=${query}`,
+            { signal: controller.signal }
           );
           if (!res.ok) {
             throw new Error("Something Went wrong ehile Wetching Movie Data");
@@ -425,12 +443,16 @@ export default function App() {
           }
           setMovies(data.Search);
         } catch (err) {
-          setError(err.message);
+          if (err.name !== "AbortError") setError(err.message);
         } finally {
           setIsLoading(false);
         }
       }
+      handleCloseMovie();
       fetchMovieData();
+      return function () {
+        controller.abort();
+      };
     },
     [query]
   );
